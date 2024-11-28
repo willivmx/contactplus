@@ -25,7 +25,7 @@ const Uploader = () => {
           <div className={"flex flex-col items-center justify-center gap-2"}>
             <FileUp size={42} className={"text-neutral-600"} />
             <span className={"font-bold text-2xl text-neutral-600"}>
-              Glisser-déposer votre fichier CSV ici
+              Glisser-déposer votre fichier VCF ici
             </span>
             <span className={"text-neutral-500"}>
               ou cliquez pour sélectionner

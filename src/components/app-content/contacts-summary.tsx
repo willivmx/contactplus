@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Contact, FormatCFA, jsonToVcf, parseVCard } from "@/lib/utils";
+import {Contact, encryptAES, FormatCFA, jsonToVcf, parseVCard} from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -285,6 +285,8 @@ const ContactsSummary = ({
       })
       .finally(() => setCheckoutIsProcessing(false));
   };
+
+  console.log(encryptAES("papa", "123456"));
 
   return (
     <div className="flex flex-col gap-6 size-full p-8 justify-start items-center">

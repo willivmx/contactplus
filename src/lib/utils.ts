@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import aes from "js-crypto-aes";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -115,3 +116,19 @@ export function jsonToVcf(contacts: Contact[]): string {
 
   return vcfLines.join("\r\n");
 }
+
+export const encryptAES = (data: string, key: string) => {
+  return aes.encrypt(
+    new TextEncoder().encode(data),
+    new TextEncoder().encode(key),
+    { name: "AES-CBC", iv: new TextEncoder().encode(key) },
+  );
+};
+
+export const decryptAES = (data: Uint8Array, key: string) => {
+  return aes.decrypt(
+    new TextEncoder().encode(data),
+    new TextEncoder().encode(key),
+    { name: "AES-CBC", iv: new TextEncoder().encode(key) },
+  );
+};
