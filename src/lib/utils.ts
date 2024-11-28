@@ -85,3 +85,33 @@ export function parseVCard(input: string): Contact[] {
 
   return contacts;
 }
+
+export function jsonToVcf(contacts: Contact[]): string {
+  const vcfLines: string[] = [];
+
+  contacts.forEach((contact) => {
+    vcfLines.push("BEGIN:VCARD");
+    vcfLines.push("VERSION:3.0");
+
+    for (const key in contact) {
+      const value = contact[key];
+      if (typeof value === "string") {
+        // Simple fields
+        vcfLines.push(`${key.toUpperCase()}:${value}`);
+      } else if (Array.isArray(value)) {
+        // Fields with metadata and multiple values
+        value.forEach((field) => {
+          const metaString = Object.entries(field.meta)
+            .map(([metaKey, metaValue]) => `${metaKey}=${metaValue}`)
+            .join(";");
+          const valueString = field.value.join(";");
+          vcfLines.push(`${key.toUpperCase()};${metaString}:${valueString}`);
+        });
+      }
+    }
+
+    vcfLines.push("END:VCARD");
+  });
+
+  return vcfLines.join("\r\n");
+}

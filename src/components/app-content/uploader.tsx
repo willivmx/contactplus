@@ -17,23 +17,30 @@ const Uploader = () => {
           <input
             type={"file"}
             accept={"text/csv, text/vcard, text/x-vcard"}
-            className={"size-full opacity-0 absolute cursor-pointer"}
+            className={"size-full opacity-0 absolute"}
             onChange={(e) => {
               setFile(e.target.files?.[0] as File);
             }}
           />
           <div className={"flex flex-col items-center justify-center gap-2"}>
-            <FileUp size={42} className={"text-primary"} />
+            <FileUp size={42} className={"text-neutral-600"} />
             <span className={"font-bold text-2xl text-neutral-600"}>
               Glisser-déposer votre fichier CSV ici
             </span>
             <span className={"text-neutral-500"}>
               ou cliquez pour sélectionner
             </span>
+            <span
+              className={
+                "text-primary text-sm font-semibold underline underline-offset-2 z-[10] cursor-pointer"
+              }
+            >
+              Comment importer mes contacts ?
+            </span>
           </div>
         </>
       ) : (
-        <ContactsSummary contacts={file} />
+        <ContactsSummary contactsFile={file} setContactsFile={setFile} />
       )}
     </div>
   );
