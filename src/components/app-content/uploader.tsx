@@ -16,7 +16,7 @@ const Uploader = () => {
         <>
           <input
             type={"file"}
-            accept={"text/csv, text/vcard, text/x-vcard"}
+            accept={"text/vcard, text/x-vcard"}
             className={"size-full opacity-0 absolute"}
             onChange={(e) => {
               setFile(e.target.files?.[0] as File);

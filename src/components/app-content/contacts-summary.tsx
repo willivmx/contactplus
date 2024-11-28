@@ -244,7 +244,7 @@ const ContactsSummary = ({
               Importer des contacts
               <Input
                 type="file"
-                accept={"text/csv, text/vcard, text/x-vcard"}
+                accept={"text/vcard, text/x-vcard"}
                 className={"absolute opacity-0 cursor-pointer"}
                 onChange={(e) => {
                   setContactsFile(e.target.files?.[0] as File);
