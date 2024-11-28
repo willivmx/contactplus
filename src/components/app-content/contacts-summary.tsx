@@ -12,6 +12,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@uidotdev/usehooks";
 import Toolbar from "@/components/app-content/toolbar";
+import { FedaPay, Transaction } from "fedapay";
+import { Loader2 } from "lucide-react";
+
+type SanitizedContact = {
+  fn: string;
+  tel: string;
+  newTel: string;
+};
+
+const PricePerContact = 0.6;
 
 const ContactsSummary = ({
   contactsFile,
@@ -29,6 +39,12 @@ const ContactsSummary = ({
   const [search, setSearch] = useState<string>("");
   const debouncedSearchTerm = useDebounce(search, 100);
   const [newFile, setNewFile] = useState<File | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<string>("");
+  const [checkoutIsProcessing, setCheckoutIsProcessing] =
+    useState<boolean>(false);
+  const [sanitizedContacts, setSanitizedContacts] = useState<
+    SanitizedContact[]
+  >([]);
 
   const mergeDuplicates = (contacts: Contact[]): Contact[] => {
     const merged: Record<string, Contact> = {};
@@ -57,6 +73,25 @@ const ContactsSummary = ({
     return Object.values(merged);
   };
 
+  // Fonction améliorée pour décoder le quoted-printable
+  const decodeQuotedPrintable = (encodedStr: string): string => {
+    // Décoder le format quoted-printable en utilisant une expression régulière
+    let decodedStr = encodedStr.replace(/=([0-9A-F]{2})/g, (_, hex) => {
+      return String.fromCharCode(parseInt(hex, 16)); // Convertir chaque valeur hexadécimale
+    });
+
+    // Maintenant, nous avons besoin de s'assurer que les caractères accentués sont décodés correctement
+    try {
+      // Essayer de convertir en UTF-8 si nécessaire
+      decodedStr = decodeURIComponent(escape(decodedStr)); // Utiliser escape() et decodeURIComponent() pour convertir correctement
+    } catch (e) {
+      console.error("Erreur lors du décodage des accents :", e);
+      // Si l'encodage échoue, retourner le texte d'origine
+    }
+
+    return decodedStr;
+  };
+
   useEffect(() => {
     if (contactsFile) {
       const reader = new FileReader();
@@ -81,6 +116,19 @@ const ContactsSummary = ({
       const editedContacts = parsed.map((c) => {
         const contact = { ...c };
 
+        // Decode quoted-printable encoding for contact.fn
+        if (contact.fn && Array.isArray(contact.fn)) {
+          contact.fn = contact.fn
+            .map((fnObj) => {
+              if (fnObj.value && fnObj.value[0]) {
+                return decodeQuotedPrintable(fnObj.value[0]); // Decode the quoted-printable string
+              }
+              return fnObj.value[0] || "";
+            })
+            .join(" ");
+        }
+
+        // Handle phone number formatting (same as previous logic)
         if (contact.tel?.length) {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-expect-error
@@ -122,6 +170,16 @@ const ContactsSummary = ({
 
       // Fusion des doublons
       const uniqueContacts = mergeDuplicates(finalContacts);
+
+      setSanitizedContacts(
+        uniqueContacts.map((c) => ({
+          fn: (c.fn || "") as string,
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-expect-error
+          tel: c.tel[0].value[0] as string,
+          newTel: c.newTel as string,
+        })),
+      );
 
       setToEdit(uniqueContacts);
       setToEditCopy(uniqueContacts);
@@ -177,7 +235,9 @@ const ContactsSummary = ({
   }, [newRaw]);
 
   const billCalculator = () =>
-    toEdit.length < 1000 ? 100 : toEdit.length / 10;
+    toEdit.length * PricePerContact < 100
+      ? 100
+      : Math.ceil(toEdit.length * PricePerContact);
 
   const downloadNewVcf = () => {
     const blob = new Blob([jsonToVcf(edited)], { type: "text/vcard" });
@@ -186,6 +246,44 @@ const ContactsSummary = ({
     link.href = url;
     link.download = "contacts_update.vcf";
     link.click();
+  };
+
+  const checkTransactionStatus = async (id: string) => {
+    const transaction = await Transaction.retrieve(id);
+    return await transaction.status;
+  };
+
+  const handleCheckout = async () => {
+    setCheckoutIsProcessing(true);
+    FedaPay.setApiKey("sk_live_si3_RcLs2wwEqX_uvokJ4Drm");
+    FedaPay.setEnvironment("live");
+    const transaction = await Transaction.create({
+      amount: billCalculator(),
+      currency: { iso: "XOF" },
+      description: "Contact Plus",
+    });
+
+    return await transaction
+      .generateToken()
+      .then(async (token) => {
+        const newWindow = window.open(
+          token.url,
+          "_blank",
+          "width=800,height=600",
+        );
+        if (newWindow) {
+          newWindow.focus();
+        }
+
+        const intervalId = setInterval(async () => {
+          const status = await checkTransactionStatus(transaction.id);
+          if (status !== "pending") {
+            clearInterval(intervalId);
+            setTransactionStatus(status);
+          }
+        }, 3000);
+      })
+      .finally(() => setCheckoutIsProcessing(false));
   };
 
   return (
@@ -210,19 +308,11 @@ const ContactsSummary = ({
         </TableHeader>
         {toEdit.length > 0 && (
           <TableBody>
-            {toEditCopy.map((contact, index) => (
+            {sanitizedContacts.map((contact, index) => (
               <TableRow key={index}>
-                <TableCell className="font-medium">
-                  {contact.fn as string}
-                </TableCell>
-                <TableCell>
-                  {
-                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                    // @ts-expect-error
-                    contact.tel?.[0]?.value[0]
-                  }
-                </TableCell>
-                <TableCell>{contact.newTel as string}</TableCell>
+                <TableCell className="font-medium">{contact.fn}</TableCell>
+                <TableCell>{contact.tel}</TableCell>
+                <TableCell>{contact.newTel}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -230,8 +320,7 @@ const ContactsSummary = ({
       </Table>
       {toEdit.length === 0 && (
         <div className={"overflow-hidden relative"}>
-          <TableCell
-            colSpan={6}
+          <div
             className={
               "text-center font-semibold text-xl text-muted-foreground h-[500px] flex flex-col items-center justify-center gap-10"
             }
@@ -251,15 +340,28 @@ const ContactsSummary = ({
                 }}
               />
             </Button>
-          </TableCell>
+          </div>
         </div>
       )}
       {toEdit.length > 0 && (
         <Button
           className="rounded-full w-full lg:w-1/3"
-          onClick={downloadNewVcf}
+          onClick={async () => {
+            if (transactionStatus === "approved") {
+              downloadNewVcf();
+            } else {
+              await handleCheckout();
+            }
+          }}
+          disabled={checkoutIsProcessing}
         >
-          Payer {FormatCFA(billCalculator())} pour télécharger
+          {checkoutIsProcessing ? (
+            <Loader2 size={18} className={"animate-spin"} />
+          ) : transactionStatus === "approved" ? (
+            "Télécharger le fichier"
+          ) : (
+            `Payer ${FormatCFA(billCalculator())} pour télécharger`
+          )}
         </Button>
       )}
     </div>
