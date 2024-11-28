@@ -126,9 +126,8 @@ export const encryptAES = (data: string, key: string) => {
 };
 
 export const decryptAES = (data: Uint8Array, key: string) => {
-  return aes.decrypt(
-    new TextEncoder().encode(data),
-    new TextEncoder().encode(key),
-    { name: "AES-CBC", iv: new TextEncoder().encode(key) },
-  );
+  return aes.decrypt(data, new TextEncoder().encode(key), {
+    name: "AES-CBC",
+    iv: new TextEncoder().encode(key),
+  }).then((decrypted) => new TextDecoder().decode(decrypted));
 };
